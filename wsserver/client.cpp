@@ -34,18 +34,23 @@
 #include <wsserver/client.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <iostream>
 
 const auto __s_send  = send;
 const auto __s_close = close;
 
-void WebSocketClient::init (int sockfd) {
+void WebSocketClient::init (int sockfd, int max_packet_size) {
     if (closed) return ;
 
     this->sockfd = sockfd;
     this->closed = false;
+
+    this->max_packet_size = max_packet_size;
 }
 
-char buffer[1024];
+// WARNING must be multiple of 4
+const int READBUFFER_SIZE = 1024;
+char buffer[READBUFFER_SIZE];
 
 optional<string> WebSocketClient::recv() {
     if (closed) return {};
@@ -68,15 +73,41 @@ optional<string> WebSocketClient::recv() {
     int     size = (c1 & 127);
     bool hasMask = (c1 & 128) != 0;
 
+    char szbuffer[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
+    long long tsize = size;
+    if (size == 126) {
+        read(sockfd, szbuffer, 2);
+        tsize = (((int) (szbuffer[0])) << 8) + szbuffer[1];
+    } else if (size == 127) {
+        read(sockfd, szbuffer, 8);
+
+        tsize = 0;
+        for (int i = 0; i < 8; i ++) {
+            tsize <<= 8;
+            tsize += szbuffer[i];
+        }
+    }
+
+    if (tsize >= max_packet_size) {
+        cout << "Packet too large sent by client, packet of size " << tsize << ", where the maximal packet size is " << max_packet_size << endl;
+        close("Packet too large.");
+        return {};
+    }
+
     char mask[4] = { 0, 0, 0, 0 };
     if (hasMask) read(sockfd, mask, 4);
 
-    read(sockfd, buffer, size);
-
     string result;
-    for (int i = 0; i < size; i ++) {
-        buffer[i] = buffer[i] ^ mask[i % 4];
-        result += buffer[i];
+    while (tsize > 0) {
+        read(sockfd, buffer, (int) min(tsize, (long long) READBUFFER_SIZE));
+
+        for (int i = 0; i < tsize && i < READBUFFER_SIZE; i ++) {
+            buffer[i] = buffer[i] ^ mask[i % 4];
+            result += buffer[i];
+        }
+
+        tsize -= READBUFFER_SIZE;
     }
 
     return result;
@@ -105,6 +136,9 @@ void WebSocketClient::send (string &buffer, int op_code) {
             c_sbf[i + 2] = buffer[offset + i];
         
         __s_send(sockfd, c_sbf, size + 2, 0);
+
+        // next packets are continuation frames
+        op_code = 0;
     }
 }
 

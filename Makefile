@@ -11,7 +11,7 @@ build:
 	make -B clean
 
 	cp -r wsserver build
-	cp entry.cpp build/
+	cp example.cpp build/
 
 	make -B compile
 compile:

@@ -41,8 +41,10 @@ struct WebSocketClient {
 private:
     int sockfd;
     bool closed = false;
+
+    int max_packet_size;
 public:
-    void init (int sockfd);
+    void init (int sockfd, int max_packet_size);
 
     void             send (string &buffer, int op_code = 1);
     optional<string> recv ();

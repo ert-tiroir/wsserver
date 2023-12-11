@@ -49,8 +49,9 @@ const auto __s_close  = close;
 
 const string PADDING = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-void WebSocketServer::init (int port) {
+void WebSocketServer::init (int port, int max_packet_size) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    this->max_packet_size = max_packet_size;
     if (sockfd < 0) return ;
 
     cout << "Created socket\n";
@@ -125,7 +126,7 @@ bool WebSocketServer::listen () {
         return false;
     }
     WebSocketClient* client = new WebSocketClient();
-    client->init(new_socket);
+    client->init(new_socket, max_packet_size);
     clients.push_back(client);
     fcntl(new_socket, F_SETFL, O_NONBLOCK);
     return true;

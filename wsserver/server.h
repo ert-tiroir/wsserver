@@ -48,8 +48,10 @@ private:
     socklen_t addrlen = sizeof(address);
 
     vector<WebSocketClient*> clients;
+
+    int max_packet_size;
 public:
-    void init   (int port);
+    void init   (int port, int max_packet_size = 1 << 28);
     bool listen ();
     void close  (string message = "");
 

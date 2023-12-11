@@ -46,7 +46,9 @@ void callback (WebSocketClient* client, string message) {
 int main () {
     // Create a web socket server on port 5420
     WebSocketServer server;
-    server.init( 5420 );
+    // add a packet size limit of 1024, if the client sends
+    // a packet with more than 1024 bytes in it, the connection will be closed
+    server.init( 5420, 1024 );
 
     while (true) {
         string buffer;
